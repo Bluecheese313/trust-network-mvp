@@ -1,0 +1,81 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Trust Network MVP</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 40px; }
+    input, textarea, button { width: 100%; padding: 10px; margin-top: 10px; }
+    #status { margin-top: 20px; color: green; }
+  </style>
+</head>
+<body>
+  <h2>🎯 Trust Network MVP (Base Sepolia)</h2>
+  <button onclick="connectWallet()">🔗 Kết nối MetaMask</button>
+  <p><strong>Ví của bạn:</strong> <span id="walletAddress">Chưa kết nối</span></p>
+
+  <h3>📝 Gửi Review</h3>
+  <input type="number" id="score" placeholder="Điểm (-10 đến 10)" min="-10" max="10" />
+  <textarea id="comment" placeholder="Nhập bình luận..."></textarea>
+  <button onclick="submitReview()">📤 Gửi Review</button>
+
+  <h3>🔍 Kiểm tra Reputation</h3>
+  <input type="text" id="checkAddress" placeholder="Địa chỉ ví (0x...)" />
+  <button onclick="getReputation()">📊 Xem Reputation</button>
+  <p id="reputationResult"></p>
+
+  <div id="status"></div>
+
+  <script>
+    const contractAddress = "0x8b3FFAAc8CEbBC334142541a07ef3C9789a6Bd6F";
+    const abi = [
+      "function submitReview(int256 score, string comment) public",
+      "function getReputation(address reviewer) public view returns (uint256)"
+    ];
+
+    let provider;
+    let signer;
+    let contract;
+
+    async function connectWallet() {
+      if (window.ethereum) {
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+        const address = await signer.getAddress();
+        document.getElementById("walletAddress").innerText = address;
+        contract = new ethers.Contract(contractAddress, abi, signer);
+        document.getElementById("status").innerText = "✅ Đã kết nối MetaMask!";
+      } else {
+        alert("Bạn cần cài MetaMask!");
+      }
+    }
+
+    async function submitReview() {
+      const score = parseInt(document.getElementById("score").value);
+      const comment = document.getElementById("comment").value;
+      if (!contract || isNaN(score)) return alert("Vui lòng nhập đúng thông tin");
+      try {
+        const tx = await contract.submitReview(score, comment);
+        document.getElementById("status").innerText = "⏳ Đang gửi giao dịch...";
+        await tx.wait();
+        document.getElementById("status").innerText = "✅ Review đã được ghi onchain!";
+      } catch (err) {
+        document.getElementById("status").innerText = "❌ Lỗi: " + (err.reason || err.message);
+      }
+    }
+
+    async function getReputation() {
+      const addr = document.getElementById("checkAddress").value;
+      if (!addr) return;
+      try {
+        const rep = await contract.getReputation(addr);
+        document.getElementById("reputationResult").innerText = `Reputation của ${addr} là: ${rep}`;
+      } catch (err) {
+        document.getElementById("reputationResult").innerText = "❌ Không thể truy vấn địa chỉ.";
+      }
+    }
+  </script>
+</body>
+</html>
